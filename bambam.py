@@ -27,6 +27,8 @@ import random
 import argparse
 import fnmatch
 from pygame.locals import Color, QUIT, KEYDOWN, MOUSEMOTION, MOUSEBUTTONDOWN, MOUSEBUTTONUP
+# To iterate over letters a to z
+from string import ascii_uppercase
 
 
 class BambamException(Exception):
@@ -157,7 +159,7 @@ class Bambam:
                 # check for words like quit
                 if event.type == KEYDOWN:
                     if event.unicode.isalpha():
-                        self.sequence += event.unicode
+                        self.sequence += event.unicode.lower()
                         if self.sequence.find('quit') > -1:
                             sys.exit(0)
                         elif self.sequence.find('unmute') > -1:
@@ -174,10 +176,21 @@ class Bambam:
                     self.screen.blit(self.background, (0, 0))
                     pygame.display.flip()
 
-                # play random sound
+                # play sounds: alpha sounds for A-Z, number sounds for 0-9, all others are random
                 if not self.sound_muted:
-                    if event.type == KEYDOWN and self.args.deterministic_sounds:
-                        self.sounds[event.key % len(self.sounds)].play()
+                    if event.type == pygame.KEYDOWN and event.unicode.isalpha():
+                        # Play alpha sound
+                        #if event.unicode.isupper():
+                        #    print ("upper: ")
+                        #    print (event.unicode)
+                        #    event.unicode = event.unicode.lower()
+                        # TODO: currently, uppercase input crashes (out of index)
+                        self.alphaSounds[ord(event.unicode.lower()) - 97].play() 
+                    elif event.type == pygame.KEYDOWN and event.unicode.isdigit():
+                        #print(event.unicode)    # Debugging 
+                        #print(ord(event.unicode) - 97)
+                        # play number sound
+                        self.numberSounds[int(event.unicode)].play()
                     else:
                         self.sounds[random.randint(
                             0, len(self.sounds) - 1)].play()
@@ -237,6 +250,7 @@ class Bambam:
         files = []
         for file_name in os.listdir(path):
             path_name = os.path.join(path, file_name)
+            # Search inside all subfolders
             if os.path.isdir(path_name):
                 files.extend(self.glob_dir(path_name, extensions))
             else:
@@ -263,8 +277,15 @@ class Bambam:
         """
         Main application entry point.
         """
+
         program_base = os.path.dirname(os.path.realpath(sys.argv[0]))
 
+        self.alphaSounds = []
+        alpha_dir = os.path.join(program_base, 'alphasounds')
+        
+        self.numberSounds = []        
+        num_dir = os.path.join(program_base, 'numbersounds')
+        
         self.dataDirs = []
         dist_data_dir = os.path.join(program_base, 'data')
         if os.path.isdir(dist_data_dir):
@@ -335,6 +356,15 @@ class Bambam:
         self.mouse_down = False
         self.sound_muted = self.args.mute
 
+        # Load sounds for A-Z
+        for c in ascii_uppercase:
+            self.alphaSounds.append(self.load_sound(os.path.join(program_base, 'alphasounds',c+'.ogg')))
+         
+        # Load sounds for A-Z
+        for n in range(0,10):
+            self.numberSounds.append(self.load_sound(os.path.join(program_base, 'numbersounds',str(n)+'.ogg')))
+            # print(str(n)+'.ogg')
+
         self.sounds = self.load_items(
             self.glob_data(['.wav', '.ogg']),
             self.args.sound_blacklist,
@@ -347,6 +377,7 @@ class Bambam:
             self.load_image,
             "images")
 
+        # TODO: improve the color palatte (hint: search "Apple Numbers color palatte RGB"
         self.colors = ((0,   0, 255), (255,   0,   0), (255, 255,   0),
                        (255,   0, 128), (0,   0, 128), (0, 255,   0),
                        (255, 128,   0), (255,   0, 255), (0, 255, 255)
